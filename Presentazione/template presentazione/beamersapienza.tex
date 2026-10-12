@@ -1,0 +1,367 @@
+\documentclass{beamer}
+\usepackage{amsfonts,amsmath}
+\usepackage{appendixnumberbeamer}
+\usetheme{sintef}
+\usetikzlibrary{arrows.meta,positioning,calc,fit,backgrounds,decorations.pathreplacing}
+\usefonttheme[onlymath]{serif}
+\titlebackground*{assets/background}
+
+\title{Centralized Scheduling in Satellite Computing}
+\subtitle{An LP-based Approach}
+\course{Bachelor's Degree in Computer Science\\Advisor: Prof. Emiliano Casalicchio}
+\author{Claudio Bagini}
+\IDnumber{2045337}
+\date{Academic Year 2025/2026}
+
+\newcommand{\lam}{\lambda}
+\newcommand{\bs}{\mathit{BS}}
+\newcommand{\bt}{\mathit{BT}}
+\tikzset{tbox/.style={draw=maincolor, fill=sintefgrey, rounded corners=2pt, align=center, font=\scriptsize, minimum height=1.2cm}}
+\newcommand{\whitebullets}{\setbeamercolor{itemize item}{fg=white}\setbeamercolor{itemize subitem}{fg=white}}
+
+% Correzione: \detokenize evita l'errore con gli underscore nei nomi dei file
+\newcommand{\fig}[2][\textwidth]{%
+  \IfFileExists{assets/#2.png}%
+    {\includegraphics[width=#1]{assets/#2.png}}%
+    {\fbox{\parbox{#1}{\centering\scriptsize\vspace{1.5cm}missing assets/\texttt{\detokenize{#2}}.png\vspace{1.5cm}}}}%
+}
+
+\begin{document}
+\maketitle
+
+\begin{frame}{Orbital Edge Computing}
+\framesubtitle{From passive relays to computing in orbit}
+\begin{itemize}\setlength\itemsep{4pt}
+  \item \textbf{Bent-pipe model}: satellites forward raw data to ground stations $\Rightarrow$ downlink bottleneck, long delays
+  \item \textbf{Orbital Edge Computing (OEC)}: onboard processors compute \emph{in space}; only results are downlinked
+  \item \textbf{LEO megaconstellations} (Starlink, OneWeb, Kuiper)
+  \begin{itemize}
+    \item 300--2000 km altitude, $\approx$7.5 km/s $\Rightarrow$ continuously changing topology
+    \item Inter-Satellite Links (ISLs): optical or RF
+  \end{itemize}
+  \item Target applications: disaster response, maritime navigation, defense surveillance $\Rightarrow$ \alert{sub-second deadlines}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Problem and research question}
+\framesubtitle{Task offloading and routing in LEO networks}
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\small
+\textbf{OEC constraints}
+\begin{itemize}\setlength\itemsep{2pt}
+  \item Limited battery / solar energy
+  \item Constrained onboard hardware
+  \item Dynamic topology, intermittent links
+  \item Strict deadlines: \\ $T_{up}+T_{cpu}+T_{down}\le D_r$
+\end{itemize}
+\vspace{2pt}
+\textbf{ILP trade-off}
+\begin{itemize}\setlength\itemsep{2pt}
+  \item Globally optimal, but NP-hard
+  \item One ILP per task: too costly
+  \item Batching: better solutions, but \alert{waiting time} eats deadlines
+\end{itemize}
+\end{column}
+\begin{column}{0.48\textwidth}
+\vspace{6pt}
+\begin{colorblock}{maincolor}{Research question}
+\small To what extent can a centralized optimization approach maintain global allocation efficiency in high-density satellite networks before queuing and solver overhead cause systemic performance degradation?
+\end{colorblock}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Objective and contributions}
+\framesubtitle{What this thesis delivers}
+\begin{enumerate}\setlength\itemsep{4pt}
+  \item \textbf{ILP model} for joint ISL routing and CPU allocation, switchable between \emph{Mapping Time} and \emph{Mapping Energy}
+  \item \textbf{Dynamic batching} with Batch Size $\bs$ and Batch Timeout $\bt$, plus deadline compensation for queuing delay
+  \item \textbf{Centralized orchestrator} in Python: SimPy (discrete-event), PuLP, HiGHS
+  \item \textbf{Stress and bottleneck analysis}: arrival rates up to $\lam=10$ req/s
+  \item \textbf{Benchmark} vs OrbitAware, DTS-base, DTS-Optimal and distributed ILP
+\end{enumerate}
+\end{frame}
+
+\begin{frame}{System model}
+\framesubtitle{Regional Walker-Delta constellation with a Master Orchestrator}
+\small
+Request $r=(d_{cpu,r},\,D_r,\,s_r,\,t_{arr},\,AP_r)$ \hfill Master has global state: queues, batteries, ISLs
+\vspace{4pt}
+
+\begin{center}
+\begin{tikzpicture}[x=1cm,y=1cm, every node/.style={font=\scriptsize}]
+  \node[tbox, minimum width=3.7cm] (up) at (0,0) {\textbf{1. Uplink}\\($T_{up}$)\\multi-hop ISL path\\from $AP_r$ to satellite $i$};
+  \node[tbox, minimum width=3.7cm] (cpu) at (4.3,0) {\textbf{2. Execution}\\($T_{cpu}$)\\onboard queue\\$W_{cpu,i}+d_{cpu,r}$};
+  \node[tbox, minimum width=3.7cm, fill=white, dashed] (down) at (8.6,0) {\textbf{3. Result delivery}\\($T_{down}$)\\autonomous greedy\\geographic routing};
+  \draw[-{Stealth}, thick, maincolor] (up) -- (cpu);
+  \draw[-{Stealth}, thick, maincolor] (cpu) -- (down);
+  \draw[decorate, decoration={brace, amplitude=5pt}, maincolor, thick] (-1.85,0.8) -- (6.15,0.8) node[midway, above=4pt] {\scriptsize planned jointly by the centralized ILP};
+  \draw[decorate, decoration={brace, amplitude=5pt}, sintefyellow, thick] (6.75,0.8) -- (10.45,0.8) node[midway, above=4pt] {\scriptsize delegated};
+\end{tikzpicture}
+\end{center}
+\vspace{-2pt}
+\end{frame}
+
+\begin{frame}{Dynamic batching engine}
+\framesubtitle{Event-driven, controlled by $\bs$ and $\bt$}
+\begin{center}
+\begin{tikzpicture}[x=1cm,y=1cm, every node/.style={font=\scriptsize}]
+  \node[tbox, minimum width=2.3cm] (a) at (0,0) {Task\\arrivals ($\lam$)};
+  \node[tbox, minimum width=2.6cm, fill=white] (b) at (3.0,0) {\textbf{Buffer}\\flush when\\$|B|\ge\bs$ or $\bt$ expires};
+  \node[tbox, minimum width=2.3cm] (c) at (6.0,0) {Topology map\\multi-source\\Dijkstra};
+  \node[tbox, minimum width=2.3cm] (d) at (8.7,0) {\textbf{ILP}\\PuLP + HiGHS};
+  \node[tbox, minimum width=2.3cm] (e) at (11.4,0) {Dispatch\\Route / Retry /\\Reject};
+  \foreach \s/\t in {a/b,b/c,c/d,d/e} \draw[-{Stealth}, thick, maincolor] (\s) -- (\t);
+\end{tikzpicture}
+\end{center}
+\small
+\begin{itemize}\setlength\itemsep{3pt}
+  \item $\bs$ caps $|R|$, hence the $|R|\times|S|$ binary variables: bounded solve time
+  \item $\bt$ caps the waiting time of any request: no starvation at low traffic
+  \item Zero-delay barrier \texttt{yield Timeout(env,0)} commits all simultaneous events before reading telemetry (state consistency)
+  \item Transient failures (no route, infeasible) are re-enqueued keeping the original $t_{arr}$
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Centralized ILP formulation}
+\framesubtitle{Per batch $R$, over candidate satellites $S$}
+\footnotesize
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\textbf{Variables}\\
+$x_{r,i}\in\{0,1\}$ assign $r$ to $i$; $y_r\in\{0,1\}$ reject $r$
+
+\vspace{3pt}
+\textbf{Objective} (Time-first)
+\[
+\min\; \alpha Z_{time}+\beta Z_{energy}+\gamma Z_{sunset}
+\]
+\vspace{-8pt}
+\begin{align*}
+Z_{time}   &= \sum_{r,i} x_{r,i}R_{r,i} + P_{drop}\sum_r y_r\\[2pt]
+Z_{energy} &= \sum_{r,i} x_{r,i}E_{r,i} + P_{drop}\sum_r y_r
+\end{align*}
+\vspace{-6pt}
+\begin{itemize}\setlength\itemsep{1.5pt}
+  \item $R_{r,i}$: uplink latency + queues + CPU exec
+  \item $E_{r,i}$: ISL forwarding ($E^{\text{up}}$) + CPU energy ($E^{\text{cpu}}$)
+  \item $Z_{sunset} = \sum_{r,i} x_{r,i}\,(1 - \frac{t_{sunset,i}}{t_{max}})$
+  \item Energy-first swaps $\alpha\leftrightarrow\beta$
+\end{itemize}
+\end{column}
+\begin{column}{0.50\textwidth}
+\textbf{Constraints}
+\begin{align*}
+&\textstyle\sum_{i} x_{r,i}+y_r=1 && \text{(uniqueness)}\\
+&x_{r,i}R_{r,i}\le D_r && \text{(deadline)}\\
+&\textstyle\sum_{r,i} x_{r,i}\,\epsilon_{r,i,k}\le B_k && \text{(battery)}\\
+&\textstyle\sum_{r} x_{r,i}\le\lfloor |R|/|S|\rfloor+5 && \text{(load)}
+\end{align*}
+\vspace{2pt}
+Rejected tasks get a \alert{cascade diagnosis}: no route, deadline, sunset, energy, capacity or global conflict.
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Experimental setup}
+\framesubtitle{SimPy discrete-event simulation}
+\small
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\textbf{Environment}
+\begin{itemize}\setlength\itemsep{2pt}
+  \item Walker-Delta LEO, 600 km, 53$^\circ$, optical ISLs, SGP4 orbits
+  \item Arrival rate $\lam\in\{2,3,4,6,8,10\}$ req/s
+  \item Battery per pass: 40 kJ or 80 kJ
+  \item Payloads 1--50 MB
+\end{itemize}
+\textbf{Workload profiles} $\beta$
+\begin{itemize}\setlength\itemsep{2pt}
+  \item Mixed $(0.40,0.35,0.25)$
+  \item CPU-intensive $(0,1,0)$
+  \item Data-intensive $(0,0,1)$
+\end{itemize}
+\end{column}
+\begin{column}{0.48\textwidth}
+\textbf{9 algorithms}
+\begin{itemize}\setlength\itemsep{2pt}
+  \item \emph{Distributed heuristics}: DTS-base, DTS-Optimal, OrbitAware
+  \item \emph{Hierarchical ILP}: Time, Energy
+  \item \emph{Centralized ILP (ours)}: fast-dispatch ($\bs$=20, $\bt$=0.05 s) and small-batching ($\bs$=2, $\bt$=2 s), each Time/Energy
+\end{itemize}
+\textbf{Metrics}
+\begin{itemize}\setlength\itemsep{2pt}
+  \item Success rate
+  \item Response time: $T_{exec}+T_{net+wait}$
+  \item Rejection causes
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Two-tier parameter calibration}
+\framesubtitle{Macro (batching) first, then micro (objective weights)}
+\small
+\begin{columns}[T]
+\begin{column}{0.49\textwidth}
+\begin{colorblock}{maincolor}{1. Macro: $\bs\times\bt$ (28 configs)}
+\whitebullets\footnotesize
+\begin{itemize}\setlength\itemsep{2pt}
+  \item $\bt\ge0.2$\,s or $\bs\ge6$: unviable, 70--85\% deadline drops
+  \item $\bt=0$ (single task): myopic greedy, only $\approx$41--48\% at $\lam=10$
+  \item Two viable archetypes: \textbf{fast-dispatch} (20, 0.05 s) and \textbf{small-batching} (2, 2 s)
+\end{itemize}
+\end{colorblock}
+\end{column}
+\begin{column}{0.49\textwidth}
+\begin{colorblock}{sintefdarkgreen}{2. Micro: $\gamma\times\alpha$}
+\whitebullets\footnotesize
+\begin{itemize}\setlength\itemsep{2pt}
+  \item Selected $\alpha^*=1000$, $\gamma^*=10$
+  \item $\gamma\ge1000$: \emph{path bloat}, response time $+55\%$ (circuitous detours)
+  \item $\gamma=10$: eclipse drops $=0\%$
+\end{itemize}
+\end{colorblock}
+\end{column}
+\end{columns}
+\vspace{4pt}
+\end{frame}
+
+\begin{frame}{Calibration result: pre- vs post-optimization}
+\framesubtitle{Success rate, Dijkstra-Time routing, $\Delta D=10\%$}
+\begin{center}\fig[0.90\textwidth]{fig_pre_post}\end{center}
+\vspace{-4pt}
+\footnotesize
+\textbf{Time Mapping, $\bs$=2:} 77\%$\to$89\% ($\lam$=2), 67.5\%$\to$87\% (4), 54\%$\to$73.5\% (8), 51\%$\to$67\% (10): up to \alert{+19.5\%}. Energy Mapping and fast-dispatch are almost insensitive to the weights.
+\end{frame}
+
+\begin{frame}{Benchmark: mixed workload}
+\framesubtitle{Success rate, 80 kJ, standard payload profile}
+\begin{columns}[c]
+\begin{column}{0.56\textwidth}
+\fig[1.1\textwidth]{fig_mixed_80}
+\end{column}
+\begin{column}{0.42\textwidth}
+\footnotesize
+\begin{itemize}\setlength\itemsep{3pt}
+  \item \textbf{Heuristics}: 98--99\% $\to$ 79--83\% (no ingress queue)
+  \item \textbf{ILP-Centr (2, 2 s, Time)}: 90--92\% $\to$ 65--67\%, best centralized; +12--20\% over fast-dispatch at $\lam=10$
+  \item \textbf{Hierarchical ILP}: 97--99\% $\to$ 39--45\%, coordination delays
+  \item Small-batching latency shrinks with load: 0.72--0.76 s $\to$ 0.56--0.65 s
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Benchmark: the ranking depends on the workload}
+\framesubtitle{Data-intensive, 80 kJ}
+\begin{columns}[c]
+\begin{column}{0.56\textwidth}
+\fig[1.05\textwidth]{fig_data_80}
+\end{column}
+\begin{column}{0.42\textwidth}
+\footnotesize
+\textbf{Data-intensive} $(0,0,1)$
+\begin{itemize}\setlength\itemsep{2pt}
+  \item Hierarchical ILP (Time) \alert{wins}: 99--100\% $\to$ 81--89\% vs heuristics 94--95\% $\to$ 77--78\%
+  \item Bottleneck: links and transceiver energy ($>$95\% of drops)
+  \item 80 kJ vs 40 kJ: up to +9--15\%
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+\appendix
+\begin{frame}{Benchmark: CPU-intensive workload}
+\framesubtitle{Success rate, 80 kJ, $\beta=(0,1,0)$}
+\begin{columns}[c]
+\begin{column}{0.56\textwidth}
+\fig[1.1\textwidth]{fig_cpu_80}
+\end{column}
+\begin{column}{0.42\textwidth}
+\footnotesize
+\begin{itemize}\setlength\itemsep{3pt}
+  \item Payload profile has \emph{no effect}: tasks carry negligible data
+  \item Heuristics: 94--95\% $\to$ 76--77\%
+  \item Fast-dispatch: 84--85\% $\to$ 31--33\%, deadline drops up to 75--78\%
+  \item Small-batching (Time): 56--58\% at $\lam=10$, up to +25\% over fast-dispatch
+  \item Hierarchical ILP: 80--84\% $\to$ 28--30\%
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+
+
+\begin{frame}{Complexity and scalability}
+\framesubtitle{Asymptotic analysis}
+\small
+\begin{itemize}\setlength\itemsep{4pt}
+  \item \textbf{Topology mapping}: multi-source Dijkstra, $O(|AP|\cdot|S|\log|S|)$, since node degree $\le4$ gives $|E|=O(|S|)$
+  \item \textbf{ILP size}: $|R|\cdot|S|+|R|$ binaries; with $\bs\le20$, $|S|\approx15$: at most 300 binaries and 330 rows
+  \item \textbf{Solver time}: $\approx$0.30--0.60 ms, independent of the arrival rate $\lam$
+  \item \textbf{Forwarding}: planned path $O(h_{up})$; greedy fallback $O(k\log k)\approx O(1)$ with $k\le4$
+  \item \textbf{Telemetry}: $O(|S|)$ messages per update; $<0.1\%$ of ISL bandwidth for $|S|\le50$, but a limit for thousands of satellites
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Deployment guidelines}
+\framesubtitle{Which paradigm, for which mission}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{@{}p{3.3cm}p{3.6cm}p{5.2cm}@{}}
+\textbf{Context} & \textbf{Recommended} & \textbf{Rationale}\\
+\hline
+Compute-intensive & Distributed heuristics (OrbitAware, DTS-Optimal) & Zero queuing; 72--95\% success\\
+Data-intensive & Hierarchical ILP (Time) & Beats heuristics with enough battery: 81--89\% at peak\\
+Mixed, throughput first ($\lam\ge6$) & Distributed heuristics & Highest admission: 79--83\%\\
+Mixed, balanced ($\lam\le4$) & Centralized small-batching (2, 2 s, Time) & 82--92\% success, 0.72--0.76 s latency\\
+\end{tabular}
+\vspace{6pt}
+
+\alert{No single paradigm dominates}: the right choice follows workload dimensionality.
+\end{frame}
+
+\begin{frame}{Conclusions}
+\framesubtitle{Answering the research question}
+\small
+\begin{colorblock}{maincolor}{The ceiling of centralized orchestration is architectural, not computational}
+\whitebullets\footnotesize
+\begin{itemize}\setlength\itemsep{2pt}
+  \item With $\bs\le20$, HiGHS solves in $\approx$0.30--0.60 ms
+  \item Onboard execution is bounded: $T_{exec}\approx0.17$--$0.48$ s
+  \item Collapse above $\lam\ge6$ is driven by \textbf{ingress queuing}, which consumes the deadline slack
+  \item Best centralized: small-batching ($\bs$=2, $\bt$=2 s) with $\alpha=1000$, $\gamma=10$: 54--67\% at $\lam=10$ (mixed)
+\end{itemize}
+\end{colorblock}
+\begin{colorblock}[black]{sintefyellow}{Limitations}
+\footnotesize
+\begin{itemize}\setlength\itemsep{2pt}
+  \item Batching dilemma for sub-second services
+  \item Master node is a single point of failure (radiation, reboots, maneuvers)
+  \item Telemetry overhead and stale state at LEO speeds
+\end{itemize}
+\end{colorblock}
+\end{frame}
+
+\begin{frame}{Future work}
+\framesubtitle{Research directions}
+\begin{itemize}\setlength\itemsep{6pt}
+  \item \textbf{Two-tier hybrid orchestration}\\
+  {\footnotesize Heuristic fast path for compute-intensive tasks, ILP layer for data-intensive ones}
+  \item \textbf{Adaptive batching with reinforcement learning}\\
+  {\footnotesize Tune $\bt(t)$ from traffic rate, residual slack and CPU queues}
+  \item \textbf{Multi-agent distributed RL (MADRL)}\\
+  {\footnotesize Remove the single point of failure; one-hop observations, CTDE training}
+  \item \textbf{Hardware-in-the-loop prototyping}\\
+  {\footnotesize HiGHS on space-grade SoCs (ARM Cortex-R52/A53, NOEL-V)}
+\end{itemize}
+\end{frame}
+
+\footlinepayoff{Claudio Bagini \enspace$\vert$\enspace Centralized Scheduling in Satellite Computing}
+\backmatter
+
+
+\end{document}
