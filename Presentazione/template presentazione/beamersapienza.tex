@@ -248,7 +248,59 @@ Rejected tasks get a \alert{cascade diagnosis}: no route, deadline, sunset, ener
   \item \textbf{Heuristics}: 98--99\% $\to$ 79--83\% (no ingress queue)
   \item \textbf{ILP-Centr (2, 2 s, Time)}: 90--92\% $\to$ 65--67\%, best centralized; +12--20\% over fast-dispatch at $\lam=10$
   \item \textbf{Hierarchical ILP}: 97--99\% $\to$ 39--45\%, coordination delays
-  \item Small-batching latency shrinks with load: 0.72--0.76 s $\to$ 0.56--0.65 s
+  \item \textbf{Small-batching latency shrinks with load}: 0.72--0.76 s $\to$ 0.56--0.65 s
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Response Time: computazione vs attesa}
+\framesubtitle{Scomposizione in Onboard Execution ($T_{exec}$) e Network/Wait Delay ($T_{net+wait}$)}
+\begin{columns}[c]
+\begin{column}{0.54\textwidth}
+% Inserisci qui l'asset corrispondente (es. fig_resp_mixed_80 o equivalente)
+\fig[1.1\textwidth]{fig_resp_mixed_80}
+\end{column}
+\begin{column}{0.44\textwidth}
+\footnotesize
+\textbf{Tempo di calcolo onboard ($T_{exec}$)}
+\begin{itemize}\setlength\itemsep{2pt}
+  \item \textbf{Invariante e limitato}: $0.17$--$0.48$\,s su tutti gli algoritmi e carichi.
+  \item La CPU del singolo satellite \alert{non è mai il collo di bottiglia}.
+\end{itemize}
+
+\vspace{3pt}
+\textbf{Tempo di rete e coda ($T_{net+wait}$)}
+\begin{itemize}\setlength\itemsep{2pt}
+  \item \textbf{Euristiche}: latenza piatta ($0.70$--$0.80$\,s), zero buffer d'ingresso.
+  \item \textbf{Hierarchical ILP}: inflazione rapida fino a $1.28$\,s per ritardi di coordinamento inter-cluster.
+  \item \textbf{Small-batching (2, 2\,s, Time)}: \emph{compressione di latenza} al crescere del carico ($0.76$\,s $\to$ $0.56$\,s), perché i burst saturano la soglia $\bs=2$ istantaneamente.
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame} 
+
+
+\begin{frame}{Diagnostica dei fallimenti: cosa causa i drop?}
+\framesubtitle{Saturazione fisica delle risorse vs scadenze temporali}
+\begin{columns}[c]
+\begin{column}{0.54\textwidth}
+% Inserisci qui l'asset del breakdown scarti (es. fig_rejection_mixed_80 o fig_rejection_cpu_80)
+\fig[1.1\textwidth]{fig_rejection_mixed_80}
+\end{column}
+\begin{column}{0.44\textwidth}
+\footnotesize
+\textbf{Divergenza per profilo di carico}
+\begin{itemize}\setlength\itemsep{2pt}
+  \item \textbf{CPU-intensive}: 0\% saturazione link. Euristiche al 100\% scartate per \emph{Insufficient CPU}.
+  \item \textbf{Data-intensive}: 0\% scarti CPU. Oltre il 95--100\% dei drop è per \emph{Insufficient CPU+NET} (banda laser ed energia transponder).
+\end{itemize}
+
+\vspace{3pt}
+\textbf{Il dilemma del batching su deadline}
+\begin{itemize}\setlength\itemsep{2pt}
+  \item \textbf{Fast-dispatch / Gerarchico}: sotto stress subiscono 65--85\% di drop per \alert{Deadline Exceeded} (code d'ingresso erodono lo slack).
+  \item \textbf{Small-batching (2, 2\,s)}: le deadline drops crollano a $<2\%$ (mixed) e $8$--$12\%$ (CPU).
 \end{itemize}
 \end{column}
 \end{columns}
@@ -264,15 +316,13 @@ Rejected tasks get a \alert{cascade diagnosis}: no route, deadline, sunset, ener
 \footnotesize
 \textbf{Data-intensive} $(0,0,1)$
 \begin{itemize}\setlength\itemsep{2pt}
-  \item Hierarchical ILP (Time) \alert{wins}: 99--100\% $\to$ 81--89\% vs heuristics 94--95\% $\to$ 77--78\%
-  \item Bottleneck: links and transceiver energy ($>$95\% of drops)
-  \item 80 kJ vs 40 kJ: up to +9--15\%
+  \item \textbf{Hierarchical ILP (Time) \alert{wins}}: 99--100\% $\to$ 81--89\% vs heuristics 94--95\% $\to$ 77--78\%
+  \item \textbf{Bottleneck}: links and transceiver energy ($>$95\% of drops)
+  \item \textbf{80 kJ vs 40 kJ}: up to +9--15\%
 \end{itemize}
 \end{column}
 \end{columns}
 \end{frame}
-
-\appendix
 \begin{frame}{Benchmark: CPU-intensive workload}
 \framesubtitle{Success rate, 80 kJ, $\beta=(0,1,0)$}
 \begin{columns}[c]
@@ -282,11 +332,11 @@ Rejected tasks get a \alert{cascade diagnosis}: no route, deadline, sunset, ener
 \begin{column}{0.42\textwidth}
 \footnotesize
 \begin{itemize}\setlength\itemsep{3pt}
-  \item Payload profile has \emph{no effect}: tasks carry negligible data
-  \item Heuristics: 94--95\% $\to$ 76--77\%
-  \item Fast-dispatch: 84--85\% $\to$ 31--33\%, deadline drops up to 75--78\%
-  \item Small-batching (Time): 56--58\% at $\lam=10$, up to +25\% over fast-dispatch
-  \item Hierarchical ILP: 80--84\% $\to$ 28--30\%
+  \item \textbf{Payload profile has \emph{no effect}}: tasks carry negligible data
+  \item \textbf{Heuristics}: 94--95\% $\to$ 76--77\%
+  \item \textbf{Fast-dispatch}: 84--85\% $\to$ 31--33\%, deadline drops up to 75--78\%
+  \item \textbf{Small-batching (Time)}: 56--58\% at $\lam=10$, up to +25\% over fast-dispatch
+  \item \textbf{Hierarchical ILP}: 80--84\% $\to$ 28--30\%
 \end{itemize}
 \end{column}
 \end{columns}
@@ -308,20 +358,60 @@ Rejected tasks get a \alert{cascade diagnosis}: no route, deadline, sunset, ener
 
 \begin{frame}{Deployment guidelines}
 \framesubtitle{Which paradigm, for which mission}
-\footnotesize
-\setlength{\tabcolsep}{4pt}
-\renewcommand{\arraystretch}{1.25}
-\begin{tabular}{@{}p{3.3cm}p{3.6cm}p{5.2cm}@{}}
-\textbf{Context} & \textbf{Recommended} & \textbf{Rationale}\\
-\hline
-Compute-intensive & Distributed heuristics (OrbitAware, DTS-Optimal) & Zero queuing; 72--95\% success\\
-Data-intensive & Hierarchical ILP (Time) & Beats heuristics with enough battery: 81--89\% at peak\\
-Mixed, throughput first ($\lam\ge6$) & Distributed heuristics & Highest admission: 79--83\%\\
-Mixed, balanced ($\lam\le4$) & Centralized small-batching (2, 2 s, Time) & 82--92\% success, 0.72--0.76 s latency\\
-\end{tabular}
-\vspace{6pt}
+\vspace{-4pt}
+\begin{columns}[T]
+\begin{column}{0.49\textwidth}
+\begin{colorblock}{maincolor}{Compute-Intensive $\beta=(0,1,0)$}
+\whitebullets\scriptsize
+\textbf{Recommended:} \textcolor{sintefyellow}{\textbf{Distributed Heuristics}}
+\begin{itemize}\setlength\itemsep{1pt}
+  \item Zero coordinator queuing
+  \item Prevents deadline collapse
+  \item \textbf{72--95\%} success, 100\% CPU-bounded drops
+\end{itemize}
+\end{colorblock}
 
-\alert{No single paradigm dominates}: the right choice follows workload dimensionality.
+\vspace{3pt}
+
+\begin{colorblock}{maincolor}{Mixed Workload --- $\lam \le 4$ req/s}
+\whitebullets\scriptsize
+\textbf{Recommended:} \textcolor{sintefyellow}{\textbf{Centralized Small-Batching}}
+\begin{itemize}\setlength\itemsep{1pt}
+  \item Pairwise ILP ($\bs=2, \bt=2$\,s, Time)
+  \item Latency compresses: $0.76 \to 0.56$\,s
+  \item High completion: \textbf{82--92\%} success
+\end{itemize}
+\end{colorblock}
+\end{column}
+
+\begin{column}{0.49\textwidth}
+\begin{colorblock}{maincolor}{Data-Intensive $\beta=(0,0,1)$}
+\whitebullets\scriptsize
+\textbf{Recommended:} \textcolor{sintefyellow}{\textbf{Hierarchical ILP (Time)}}
+\begin{itemize}\setlength\itemsep{1pt}
+  \item Resolves ISL transceiver bottlenecks
+  \item High battery elasticity (+9--15\% with 80 kJ)
+  \item \textbf{81--89\%} success (beats heuristics)
+\end{itemize}
+\end{colorblock}
+
+\vspace{3pt}
+
+\begin{colorblock}{maincolor}{Mixed Workload --- $\lam \ge 6$ req/s}
+\whitebullets\scriptsize
+\textbf{Recommended:} \textcolor{sintefyellow}{\textbf{Distributed Heuristics}}
+\begin{itemize}\setlength\itemsep{1pt}
+  \item Raw admission priority
+  \item Immune to ingress buffer saturation
+  \item Highest sustained yield: \textbf{79--83\%}
+\end{itemize}
+\end{colorblock}
+\end{column}
+\end{columns}
+
+\vspace{6pt}
+\centering
+\scriptsize \alert{\textbf{Key insight:}} Orchestration optimality is fundamentally workload-dimensional.
 \end{frame}
 
 \begin{frame}{Conclusions}
@@ -360,7 +450,7 @@ Mixed, balanced ($\lam\le4$) & Centralized small-batching (2, 2 s, Time) & 82--9
 \end{itemize}
 \end{frame}
 
-\footlinepayoff{Claudio Bagini \enspace$\vert$\enspace Centralized Scheduling in Satellite Computing}
+\footlinepayoff{Claudio Bagini 2045337 \enspace$\vert$\enspace Centralized Scheduling in Satellite Computing}
 \backmatter
 
 
