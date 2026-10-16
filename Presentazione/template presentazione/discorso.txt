@@ -1,0 +1,137 @@
+[Slide 1: Titolo]
+
+Buongiorno alla commissione e buongiorno al mio relatore, il Professor Emiliano Casalicchio. Sono Claudio Bagini e oggi vi presento il mio lavoro di tesi dal titolo "Centralized Scheduling in Satellite Computing: An LP-based Approach".
+
+
+
+[Slide 2: Orbital Edge Computing]
+
+Negli ultimi anni, l'infrastruttura satellitare ha subito un cambio di paradigma monumentale. Storicamente, i satelliti operavano secondo un modello 'bent-pipe', agendo come meri ripetitori passivi che inviavano i dati crudi a terra per l'elaborazione. Oggi, per superare i colli di bottiglia nei downlink, stiamo passando all'Orbital Edge Computing. Questo significa dotare i satelliti, in particolare quelli delle costellazioni LEO, di capacità di calcolo a bordo, in modo da elaborare i dati direttamente nello spazio e trasmettere a terra solo i risultati finali.
+
+
+
+[Slide 3: Problem and research question]
+
+Tuttavia, orchestrare queste operazioni nello spazio presenta sfide critiche. I satelliti hanno hardware limitato e budget energetici ristretti, basati su pannelli solari e batterie. Inoltre, le altissime velocità orbitali creano una topologia di rete in costante mutamento e le applicazioni target, come il monitoraggio dei disastri, impongono scadenze temporali - o deadline - strettissime. 
+
+La domanda di ricerca che ha guidato questo lavoro è quindi la seguente: fino a che punto un approccio di ottimizzazione centralizzata può mantenere un'allocazione efficiente in queste reti satellitari, prima che i ritardi di accodamento e i tempi di calcolo del solutore causino un degrado delle prestazioni?
+
+
+
+[Slide 4: Objective and contributions]
+
+Per rispondere a questa domanda, questa tesi porta i seguenti contributi: 
+
+In primo luogo, abbiamo formulato un modello di Programmazione Lineare Intera (ILP) per ottimizzare congiuntamente l'instradamento nella rete satellitare e l'allocazione della CPU.
+
+In secondo luogo, abbiamo integrato un meccanismo di Dynamic Batching per mitigare i costi computazionali. Infine, abbiamo sviluppato un orchestratore centralizzato in Python utilizzando SimPy, sottoponendolo a intensi stress test contro gli algoritmi attualmente allo stato dell'arte.
+
+
+
+[Slide 5: System model]
+
+Il nostro modello di sistema si basa su una costellazione di tipo Walker-Delta gestita da un Master Orchestrator centrale. Il ciclo di vita di ogni task è diviso in tre fasi:
+
+1. L'Uplink, ovvero l'invio multi-hop del payload fino al satellite scelto.
+
+2. L'Esecuzione vera e propria sulla CPU a bordo.
+
+3. La Result Delivery, delegata a un instradamento geografico di tipo greedy, poiché la topologia muta troppo rapidamente per pianificare in anticipo il percorso di ritorno.
+
+
+
+[Slide 6: Dynamic batching engine]
+
+Per evitare che il solutore valuti ogni singolo task, intasando il sistema con tempi di calcolo eccessivi, abbiamo introdotto un motore di Dynamic Batching controllato da due soglie:
+
+Il Batch Size (BS), che limita la grandezza del lotto, e il Batch Timeout (BT), che limita il tempo massimo di attesa di un task. Questo ci garantisce che la latenza introdotta dall'orchestratore sia sempre limitata e controllata.
+
+
+
+[Slide 7: Centralized ILP formulation]
+
+Il cuore decisionale è la nostra formulazione ILP. Il solutore ha due obiettivi primari intercambiabili: minimizzare il tempo di latenza, tramite la strategia 'Time-first', o preservare la batteria della costellazione, tramite 'Energy-first'. 
+
+A questi obiettivi si affianca una penalità di 'sunset', che scoraggia l'invio di task a satelliti che stanno per entrare nella fase di eclissi orbitale. Tutto questo deve rispettare stringenti vincoli fisici: l'unicità dell'assegnazione, il rispetto della deadline dell'applicazione, la batteria residua e il bilanciamento del carico per evitare la congestione dei singoli nodi.
+
+
+
+[Slide 8: Experimental setup]
+
+Per la fase sperimentale, abbiamo simulato scenari di carico da leggero fino a estremo, con rate di arrivo fino a 10 richieste al secondo. Abbiamo testato l'orchestratore sotto carichi di lavoro misti, CPU-intensive e Data-intensive, confrontandolo con 9 algoritmi, incluse euristiche distribuite come DTS-base e OrbitAware.
+
+
+
+[Slide 9: Two-tier parameter calibration]
+
+La calibrazione del nostro orchestratore è avvenuta in due fasi. Nella fase Macro, abbiamo valutato 28 configurazioni di batching, scoprendo che timeout superiori a 0.2 secondi sono inattuabili per questi contesti. Abbiamo quindi isolato due archetipi vincenti: un approccio 'fast-dispatch' reattivo e uno 'small-batching' che valuta i task a coppie.
+
+Nella calibrazione Micro, abbiamo tarato i pesi della funzione obiettivo. Abbiamo scoperto che un peso molto aggressivo sul tempo e uno bilanciato sull'eclissi permettono di massimizzare il rendimento senza forzare deviazioni di percorso troppo lunghe.
+
+
+
+[Slide 10: Calibration result]
+
+I risultati di questa ottimizzazione sono stati notevoli. Come si evince dal grafico sulla destra relativo al Time Mapping, l'ottimizzazione dei pesi ha garantito al modello small-batching un recupero del Success Rate che arriva fino al +19.5% rispetto alla configurazione di base. L'Energy Mapping, a sinistra, si è rivelato invece fisiologicamente meno sensibile a queste variazioni.
+
+
+
+[Slide 11: Benchmark: mixed workload]
+
+Passando al benchmark sul carico di lavoro misto, vediamo un confronto diretto con lo stato dell'arte. Le euristiche distribuite, smistando i task senza accodarli, mantengono un'altissima priorità di ammissione. Tra i metodi centralizzati, il nostro modello small-batching si dimostra nettamente il migliore: arriva al 67% di successo sotto carico massimo e supera i modelli ILP gerarchici, che collassano intorno al 40% a causa dei pesanti ritardi di coordinamento tra i cluster.
+
+
+
+[Slide 12: Response Time]
+
+Se andiamo a scomporre il Response Time di queste operazioni, notiamo un dato fondamentale. Il tempo effettivo di elaborazione a bordo del satellite, qui rappresentato dalla parte solida inferiore delle barre, è invariante e limitato su tutti gli algoritmi. La CPU del singolo satellite non è mai il reale collo di bottiglia.
+
+La latenza si espande invece a causa del ritardo di rete e dei tempi di attesa in coda. Nel nostro small-batching, la latenza addirittura si comprime all'aumentare del carico, poiché i continui arrivi saturano istantaneamente la soglia minima del lotto facendo scattare subito l'elaborazione.
+
+
+
+[Slide 13: Diagnostica dei fallimenti]
+
+Questa dinamica ci porta al cuore del problema: perché i task vengono scartati? Analizzando la diagnostica dei fallimenti, emerge quello che abbiamo definito il 'dilemma del batching'.
+
+Sotto forte stress, le strategie veloci o gerarchiche subiscono un altissimo tasso di scarti per 'Deadline Exceeded', le barre in blu: il tempo passato in coda consuma il margine utile temporale prima ancora che il task parta.
+
+Il nostro modello small-batching ottimizzato risolve egregiamente il problema: abbatte i drop temporali a meno del 2% e fa sì che il sistema scarti task quasi esclusivamente quando sono effettivamente finite le risorse fisiche di CPU o di rete, comportandosi in modo estremamente efficiente.
+
+
+
+[Slide 14 & 15: Benchmark by Workload Profile]
+
+(Opzionale: scorrere velocemente)
+
+Il ranking degli algoritmi varia molto in base al profilo di carico. Nei contesti fortemente Data-intensive, i modelli basati su ILP superano le euristiche perché riescono a ottimizzare i colli di bottiglia dei link ottici. Al contrario, nei contesti CPU-intensive, dove conta solo la potenza di calcolo, le euristiche distribuite dominano poiché evitano del tutto le code.
+
+
+
+[Slide 16: Complexity]
+
+(Opzionale: da tenere di riserva o scorrere via)
+
+
+
+[Slide 17: Deployment guidelines]
+
+Tutti questi dati si sintetizzano in chiare linee guida per le future missioni spaziali. Non esiste un singolo algoritmo dominante. Per servizi puramente di calcolo, le euristiche distribuite rimangono la scelta migliore. Per task puramente data-intensive, l'orchestrazione gerarchica è raccomandata. Infine, per scenari misti, che sono i più realistici, il nostro approccio di Small-Batching centralizzato garantisce il miglior compromesso tra ottimizzazione globale, rispetto delle deadline e latenza.
+
+
+
+[Slide 18: Conclusions]
+
+In conclusione, per rispondere alla domanda di ricerca della tesi: il vero limite dell'orchestrazione centralizzata in questi ambienti non è computazionale. Il solutore HiGHS valuta i lotti in frazioni di millisecondo e l'esecuzione a bordo è stabile. Il vero soffitto di cristallo è architetturale ed è dettato dai ritardi imposti dalle code di ingresso, le ingress queue. Limitare l'aggregazione a micro-lotti, come dimostrato dalla nostra configurazione ottimizzata, è l'unico modo per preservare l'efficienza globale senza sacrificare le scadenze temporali.
+
+
+
+[Slide 19: Future work]
+
+Come sviluppi futuri, questo lavoro apre la strada a un'orchestrazione ibrida a due livelli, oppure all'uso di agenti di Reinforcement Learning distribuiti (MADRL) per eliminare del tutto il singolo punto di vulnerabilità del nodo Master. Sarebbe inoltre fondamentale testare questo framework direttamente su hardware certificato per lo spazio.
+
+
+
+[Slide 20: Chiusura]
+
+Vi ringrazio per l'attenzione e sono a vostra disposizione per eventuali domande.
