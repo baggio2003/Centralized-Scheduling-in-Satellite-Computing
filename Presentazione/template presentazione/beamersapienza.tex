@@ -228,22 +228,27 @@ Rejected tasks get a \alert{cascade diagnosis}: no route, deadline, sunset, ener
 \vspace{4pt}
 \end{frame}
 
+% --- SLIDE 9 ---
 \begin{frame}{Calibration result: pre- vs post-optimization}
 \framesubtitle{Success rate, Dijkstra-Time routing, $\Delta D=10\%$}
-\begin{center}\fig[0.90\textwidth]{fig_pre_post}\end{center}
-\vspace{-4pt}
-\footnotesize
+\vspace{-8pt}
+\begin{center}\hspace*{-0.3cm}\fig[1.02\textwidth]{fig_pre_post}\end{center}
+\vspace{-10pt}
+\scriptsize
 \textbf{Time Mapping, $\bs$=2:} 77\%$\to$89\% ($\lam$=2), 67.5\%$\to$87\% (4), 54\%$\to$73.5\% (8), 51\%$\to$67\% (10): up to \alert{+19.5\%}. Energy Mapping and fast-dispatch are almost insensitive to the weights.
 \end{frame}
 
+% --- SLIDE 10 ---
 \begin{frame}{Benchmark: mixed workload}
 \framesubtitle{Success rate, 80 kJ, standard payload profile}
-\begin{columns}[c]
-\begin{column}{0.56\textwidth}
-\fig[1.1\textwidth]{fig_mixed_80}
+\vspace{-6pt}
+\begin{columns}[c,onlytextwidth]
+\begin{column}{0.73\textwidth}
+\hspace*{-0.75cm}\fig[1.05\textwidth]{fig_mixed_80}
 \end{column}
-\begin{column}{0.42\textwidth}
-\footnotesize
+\begin{column}{0.33\textwidth}
+\scriptsize
+\setlength{\leftmargini}{8pt}
 \begin{itemize}\setlength\itemsep{3pt}
   \item \textbf{Heuristics}: 98--99\% $\to$ 79--83\% (no ingress queue)
   \item \textbf{ILP-Centr (2, 2 s, Time)}: 90--92\% $\to$ 65--67\%, best centralized; +12--20\% over fast-dispatch at $\lam=10$
@@ -254,68 +259,74 @@ Rejected tasks get a \alert{cascade diagnosis}: no route, deadline, sunset, ener
 \end{columns}
 \end{frame}
 
-\begin{frame}{Response Time: computazione vs attesa}
-\framesubtitle{Scomposizione in Onboard Execution ($T_{exec}$) e Network/Wait Delay ($T_{net+wait}$)}
-\begin{columns}[c]
-\begin{column}{0.54\textwidth}
-% Inserisci qui l'asset corrispondente (es. fig_resp_mixed_80 o equivalente)
-\fig[1.1\textwidth]{fig_resp_mixed_80}
+% --- SLIDE 11 ---
+\begin{frame}{Response time: computation vs waiting}
+\framesubtitle{Breakdown into Onboard Execution ($T_{exec}$) and Network/Wait Delay ($T_{net+wait}$)}
+\vspace{-6pt}
+\begin{columns}[c,onlytextwidth]
+\begin{column}{0.72\textwidth}
+\hspace*{-0.75cm}\fig[1.05\textwidth]{fig_resp_mixed_80}
 \end{column}
-\begin{column}{0.44\textwidth}
-\footnotesize
-\textbf{Tempo di calcolo onboard ($T_{exec}$)}
-\begin{itemize}\setlength\itemsep{2pt}
-  \item \textbf{Invariante e limitato}: $0.17$--$0.48$\,s su tutti gli algoritmi e carichi.
-  \item La CPU del singolo satellite \alert{non è mai il collo di bottiglia}.
+\begin{column}{0.34\textwidth}
+\scriptsize
+\setlength{\leftmargini}{8pt}
+\textbf{Onboard execution ($T_{exec}$)}
+\begin{itemize}\setlength\itemsep{1pt}
+  \item \textbf{Invariant and bounded}: $0.17$--$0.48$\,s across all algorithms and loads.
+  \item Single-satellite CPU is \alert{never the bottleneck}.
 \end{itemize}
 
-\vspace{3pt}
-\textbf{Tempo di rete e coda ($T_{net+wait}$)}
-\begin{itemize}\setlength\itemsep{2pt}
-  \item \textbf{Euristiche}: latenza piatta ($0.70$--$0.80$\,s), zero buffer d'ingresso.
-  \item \textbf{Hierarchical ILP}: inflazione rapida fino a $1.28$\,s per ritardi di coordinamento inter-cluster.
-  \item \textbf{Small-batching (2, 2\,s, Time)}: \emph{compressione di latenza} al crescere del carico ($0.76$\,s $\to$ $0.56$\,s), perché i burst saturano la soglia $\bs=2$ istantaneamente.
-\end{itemize}
-\end{column}
-\end{columns}
-\end{frame} 
-
-
-\begin{frame}{Diagnostica dei fallimenti: cosa causa i drop?}
-\framesubtitle{Saturazione fisica delle risorse vs scadenze temporali}
-\begin{columns}[c]
-\begin{column}{0.54\textwidth}
-% Inserisci qui l'asset del breakdown scarti (es. fig_rejection_mixed_80 o fig_rejection_cpu_80)
-\fig[1.1\textwidth]{fig_rejection_mixed_80}
-\end{column}
-\begin{column}{0.44\textwidth}
-\footnotesize
-\textbf{Divergenza per profilo di carico}
-\begin{itemize}\setlength\itemsep{2pt}
-  \item \textbf{CPU-intensive}: 0\% saturazione link. Euristiche al 100\% scartate per \emph{Insufficient CPU}.
-  \item \textbf{Data-intensive}: 0\% scarti CPU. Oltre il 95--100\% dei drop è per \emph{Insufficient CPU+NET} (banda laser ed energia transponder).
-\end{itemize}
-
-\vspace{3pt}
-\textbf{Il dilemma del batching su deadline}
-\begin{itemize}\setlength\itemsep{2pt}
-  \item \textbf{Fast-dispatch / Gerarchico}: sotto stress subiscono 65--85\% di drop per \alert{Deadline Exceeded} (code d'ingresso erodono lo slack).
-  \item \textbf{Small-batching (2, 2\,s)}: le deadline drops crollano a $<2\%$ (mixed) e $8$--$12\%$ (CPU).
+\vspace{2pt}
+\textbf{Network and queuing delay ($T_{net+wait}$)}
+\begin{itemize}\setlength\itemsep{1pt}
+  \item \textbf{Heuristics}: flat latency ($0.70$--$0.80$\,s), zero ingress buffer.
+  \item \textbf{Hierarchical ILP}: rapid inflation up to $1.28$\,s due to inter-cluster coordination delays.
+  \item \textbf{Small-batching (2, 2\,s, Time)}: \emph{latency compression} as load grows ($0.76$\,s $\to$ $0.56$\,s), since bursts saturate $\bs=2$ instantaneously.
 \end{itemize}
 \end{column}
 \end{columns}
 \end{frame}
 
+% --- SLIDE 12 ---
+\begin{frame}{Failure diagnostics: what causes task drops?}
+\framesubtitle{Physical resource saturation vs deadline expiration}
+\vspace{-6pt}
+\begin{columns}[c,onlytextwidth]
+\begin{column}{0.72\textwidth}
+\hspace*{-0.75cm}\fig[1.05\textwidth]{fig_rejection_mixed_80}
+\end{column}
+\begin{column}{0.34\textwidth}
+\scriptsize
+\setlength{\leftmargini}{8pt}
+\textbf{Divergence across workload profiles}
+\begin{itemize}\setlength\itemsep{1pt}
+  \item \textbf{CPU-intensive}: 0\% link saturation. Heuristics drop 100\% due to \emph{Insufficient CPU}.
+  \item \textbf{Data-intensive}: 0\% CPU drops. Over 95--100\% of drops are due to \emph{Insufficient CPU+NET} (laser bandwidth and transponder energy).
+\end{itemize}
+
+\vspace{2pt}
+\textbf{The batching-deadline dilemma}
+\begin{itemize}\setlength\itemsep{1pt}
+  \item \textbf{Fast-dispatch / Hierarchical}: under stress, suffer 65--85\% drops from \alert{Deadline Exceeded} (ingress queues erode slack).
+  \item \textbf{Small-batching (2, 2\,s)}: deadline drops plunge to $<2\%$ (mixed) and $8$--$12\%$ (CPU).
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+% --- SLIDE 13 ---
 \begin{frame}{Benchmark: the ranking depends on the workload}
 \framesubtitle{Data-intensive, 80 kJ}
-\begin{columns}[c]
-\begin{column}{0.56\textwidth}
-\fig[1.05\textwidth]{fig_data_80}
+\vspace{-6pt}
+\begin{columns}[c,onlytextwidth]
+\begin{column}{0.73\textwidth}
+\hspace*{-0.75cm}\fig[1.05\textwidth]{fig_data_80}
 \end{column}
-\begin{column}{0.42\textwidth}
-\footnotesize
+\begin{column}{0.33\textwidth}
+\scriptsize
+\setlength{\leftmargini}{8pt}
 \textbf{Data-intensive} $(0,0,1)$
-\begin{itemize}\setlength\itemsep{2pt}
+\begin{itemize}\setlength\itemsep{3pt}
   \item \textbf{Hierarchical ILP (Time) \alert{wins}}: 99--100\% $\to$ 81--89\% vs heuristics 94--95\% $\to$ 77--78\%
   \item \textbf{Bottleneck}: links and transceiver energy ($>$95\% of drops)
   \item \textbf{80 kJ vs 40 kJ}: up to +9--15\%
@@ -323,15 +334,19 @@ Rejected tasks get a \alert{cascade diagnosis}: no route, deadline, sunset, ener
 \end{column}
 \end{columns}
 \end{frame}
+
+% --- SLIDE 14 ---
 \begin{frame}{Benchmark: CPU-intensive workload}
 \framesubtitle{Success rate, 80 kJ, $\beta=(0,1,0)$}
-\begin{columns}[c]
-\begin{column}{0.56\textwidth}
-\fig[1.1\textwidth]{fig_cpu_80}
+\vspace{-6pt}
+\begin{columns}[c,onlytextwidth]
+\begin{column}{0.73\textwidth}
+\hspace*{-0.75cm}\fig[1.05\textwidth]{fig_cpu_80}
 \end{column}
-\begin{column}{0.42\textwidth}
-\footnotesize
-\begin{itemize}\setlength\itemsep{3pt}
+\begin{column}{0.33\textwidth}
+\scriptsize
+\setlength{\leftmargini}{8pt}
+\begin{itemize}\setlength\itemsep{2.5pt}
   \item \textbf{Payload profile has \emph{no effect}}: tasks carry negligible data
   \item \textbf{Heuristics}: 94--95\% $\to$ 76--77\%
   \item \textbf{Fast-dispatch}: 84--85\% $\to$ 31--33\%, deadline drops up to 75--78\%
@@ -341,8 +356,6 @@ Rejected tasks get a \alert{cascade diagnosis}: no route, deadline, sunset, ener
 \end{column}
 \end{columns}
 \end{frame}
-
-
 
 \begin{frame}{Complexity and scalability}
 \framesubtitle{Asymptotic analysis}
@@ -452,6 +465,5 @@ Rejected tasks get a \alert{cascade diagnosis}: no route, deadline, sunset, ener
 
 \footlinepayoff{Claudio Bagini 2045337 \enspace$\vert$\enspace Centralized Scheduling in Satellite Computing}
 \backmatter
-
 
 \end{document}
