@@ -11,7 +11,7 @@
 
 *[Slide: Titolo]*
 
-Buongiorno a tutti, con il permesso della commissione, presento la mia tesi, *Centralized Scheduling in Satellite Computing: An LP-based Approach*.
+Buongiorno a tutti, con il permesso della commissione, presento la mia tesi sul *Centralized Scheduling in Satellite Computing*.
 
 *[Slide: Orbital Edge Computing]*
 
@@ -95,7 +95,7 @@ Nello scenario CPU-intensive, invece, i dati sono trascurabili e tornano in test
 
 *[Slide: Complexity and scalability]*
 
-Resta da verificare se il collo di bottiglia possa essere il solutore. Con batch fino a venti e circa quindici satelliti candidati, l'ILP ha circa trecento variabili binarie, e HiGHS lo risolve in meno di un millisecondo, indipendentemente dal tasso di arrivo. Il solutore, quindi, non è il problema.
+Resta da verificare se il collo di bottiglia possa essere il costo computazionale dell'orchestratore. Dal punto di vista del calcolo, l'intera pipeline scala molto bene: la ricerca dei cammini con Dijkstra multi-sorgente sfrutta un grafo sparso con grado massimo pari a quattro, e anche il fallback greedy a bordo ha costo costante. Per quanto riguarda l'ILP, con batch fino a venti e circa quindici satelliti candidati ad esempio, abbiamo al più trecento variabili binarie: HiGHS trova l'ottimo tra zero virgola tre e zero virgola sei millisecondi, indipendentemente dal traffico. Persino la telemetria, fino a cinquanta satelliti, consuma meno dello zero virgola uno per cento della banda ottica. Il solutore e il calcolo, quindi, non sono il problema.
 
 *[Slide: Deployment guidelines]*
 
